@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>TikTop - Пародия на TikTok с Supabase</title>
+  
+  <!-- CSS Стили -->
+  <link rel="stylesheet" href="css/tiktok.css" />
+
+  <!-- Supabase JavaScript SDK v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- Основной контейнер приложения (Форм-фактор смартфона на десктопе / 100% на мобильных) -->
+  <div class="tiktok-container">
+
+    <!-- Всплывающий тост для уведомлений -->
+    <div id="app-toast" class="tiktok-toast"></div>
+
+    <!-- Обертка экранов приложения -->
+    <div class="screen-wrapper">
+
+      <!-- 1. ЭКРАН: ЛЕНТА ВИДЕО (FEED) -->
+      <div class="app-screen active" id="screen-feed">
+        <!-- Верхние вкладки ленты -->
+        <div class="feed-header">
+          <div class="feed-tab" data-tab="following">Подписки</div>
+          <div class="feed-tab" data-tab="friends">Друзья 🤝</div>
+          <div class="feed-tab active" data-tab="for_you">Для вас</div>
+        </div>
+
+        <!-- Контейнер вертикального видеоскролла -->
+        <div class="feed-container" id="feed-container">
+          <!-- Видео генерируются динамически через js/feed.js -->
+        </div>
+      </div>
+
+      <!-- 2. ЭКРАН: ВХОДЯЩИЕ И ДИАЛОГИ С ДРУЗЬЯМИ (INBOX) -->
+      <div class="app-screen" id="screen-inbox">
+        <div class="inbox-container">
+          <div class="inbox-header">
+            <span>Входящие 💬</span>
+          </div>
+
+          <!-- Истории / Взаимные друзья -->
+          <div class="friends-stories-row" id="inbox-stories-list">
+            <!-- Список взаимных друзей -->
+          </div>
+
+          <div style="font-size: 13px; font-weight: 700; color: var(--text-dim); margin-bottom: 8px;">Сообщения и отправленные видео</div>
+          
+          <!-- Список диалогов -->
+          <div class="messages-list" id="inbox-messages-list">
+            <!-- Сообщения генерируются динамически -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. ЭКРАН: ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ (PROFILE) -->
+      <div class="app-screen" id="screen-profile">
+        <div class="profile-screen-inner">
+          <div class="profile-top-bar">
+            <div class="profile-username-header" id="profile-handle">@username</div>
+            <!-- Эксклюзивная кнопка админки для puffahaka -->
+            <button class="admin-badge-btn" id="btn-profile-admin" style="display: none;">
+              👑 Панель Админа
+            </button>
+          </div>
+
+          <div class="profile-avatar-wrapper" id="profile-avatar-clickable" title="Нажмите, чтобы изменить фото">
+            <img class="profile-avatar-large" id="profile-avatar-img" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150" alt="Avatar">
+            <div class="avatar-camera-badge" id="avatar-camera-badge">📷</div>
+          </div>
+
+          <div class="profile-name-title" id="profile-display-name">Имя пользователя</div>
+
+          <!-- Статистика подписок, подписчиков и друзей -->
+          <div class="profile-stats-row">
+            <div class="stat-box">
+              <span class="stat-number" id="stat-following-count">0</span>
+              <span class="stat-label">Подписки</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-number" id="stat-followers-count">0</span>
+              <span class="stat-label">Подписчики</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-number" id="stat-friends-count">0</span>
+              <span class="stat-label">Друзья 🤝</span>
+            </div>
+          </div>
+
+          <!-- Кнопки управления профилем -->
+          <div class="profile-actions-row">
+            <button class="btn-secondary" id="btn-edit-profile" style="flex: 1;">Редактировать профиль</button>
+            <button class="btn-primary" id="btn-profile-follow" style="flex: 1; display: none;">Подписаться</button>
+            <button class="btn-secondary" id="btn-profile-logout" style="width: 44px; padding: 0;" title="Выйти">🚪</button>
+          </div>
+
+          <div class="profile-bio-text" id="profile-bio">
+            Описание профиля
+          </div>
+
+          <!-- Вкладки контента в профиле -->
+          <div class="profile-videos-tabs">
+            <div class="p-tab active">🎬</div>
+          </div>
+
+          <!-- Сетка видео пользователя -->
+          <div class="profile-videos-grid" id="profile-videos-grid">
+            <!-- Элементы сетки видео -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ (BOTTOM NAVIGATION) -->
+    <div class="bottom-nav">
+      <div class="nav-tab active" data-screen="feed">
+        <span class="nav-tab-icon">🏠</span>
+        <span>Главная</span>
+      </div>
+      <div class="nav-tab" data-screen="friends_feed">
+        <span class="nav-tab-icon">👥</span>
+        <span>Друзья</span>
+      </div>
+      <div class="nav-upload-btn" id="btn-nav-upload" title="Создать видео">
+        <div class="upload-btn-bg">+</div>
+      </div>
+      <div class="nav-tab" data-screen="inbox">
+        <span class="nav-tab-icon">💬</span>
+        <span>Входящие</span>
+      </div>
+      <div class="nav-tab" data-screen="profile">
+        <span class="nav-tab-icon">👤</span>
+        <span>Профиль</span>
+      </div>
+    </div>
+
+    <!-- ВЫДВИЖНАЯ ШТОРКА КОММЕНТАРИЕВ (COMMENTS DRAWER) -->
+    <div class="comments-drawer" id="comments-drawer">
+      <div class="drawer-header">
+        <div style="width: 20px;"></div>
+        <div class="drawer-title" id="comments-header-count">0 комментариев</div>
+        <div class="drawer-close-btn" id="btn-close-comments">✕</div>
+      </div>
+      <div class="comments-list" id="comments-list">
+        <!-- Список комментариев -->
+      </div>
+      <div class="comment-input-bar">
+        <input type="text" class="comment-input" id="comment-input" placeholder="Оставьте добрый комментарий..." maxlength="300" />
+        <button class="comment-send-btn" id="btn-comment-send">➤</button>
+      </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: ШЕРИНГ / ОТПРАВКА ВИДЕО ДРУЗЬЯМ -->
+    <div class="modal-overlay" id="share-friends-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title">Отправить друзьям ✈️</div>
+          <div class="modal-close" id="btn-close-share">✕</div>
+        </div>
+        <div class="form-group">
+          <input type="text" class="form-input" id="share-message-note" placeholder="Добавьте сообщение к видео (опционально)..." />
+        </div>
+        <div style="font-size: 12px; color: var(--text-dim);">Ваши взаимные друзья:</div>
+        <div class="friends-share-list" id="share-friends-list">
+          <!-- Список друзей для отправки -->
+        </div>
+      </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: АВТОРИЗАЦИЯ / РЕГИСТРАЦИЯ (БЕЗ ПОЧТЫ) -->
+    <div class="modal-overlay" id="auth-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title" id="auth-modal-title">Вход в TikTop</div>
+          <div class="modal-close">✕</div>
+        </div>
+        
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <button class="feed-tab active" id="auth-tab-login" style="flex:1;">Вход</button>
+          <button class="feed-tab" id="auth-tab-register" style="flex:1;">Регистрация</button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Юзернейм (Логин)</label>
+          <input type="text" class="form-input" id="auth-username" placeholder="например, puffahaka" />
+        </div>
+
+        <div class="form-group" id="auth-group-displayname" style="display: none;">
+          <label class="form-label">Имя (Отображаемое)</label>
+          <input type="text" class="form-input" id="auth-displayname" placeholder="Ваше имя" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Пароль</label>
+          <input type="password" class="form-input" id="auth-password" placeholder="••••••••" />
+        </div>
+
+        <button class="btn-primary" id="btn-auth-submit">Войти</button>
+        
+        <div style="font-size: 11px; color: var(--text-dim); text-align: center;">
+          💡 Почта не требуется! Достаточно логина и пароля. Юзернейм <b>puffahaka</b> автоматически получит панель администратора.
+        </div>
+      </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: ЗАГРУЗКА И СОЗДАНИЕ ВИДЕО -->
+    <div class="modal-overlay" id="upload-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title">Создать новое видео 🎬</div>
+          <div class="modal-close">✕</div>
+        </div>
+
+        <!-- Превью и выбор файла -->
+        <input type="file" id="upload-file-input" accept="video/mp4,video/webm,video/*" style="display: none;" />
+        <div class="upload-video-preview" id="upload-preview-box">
+          <video id="upload-preview-player" playsinline muted loop style="display: none;"></video>
+          <div class="placeholder-txt" id="upload-placeholder-txt">
+            📁 Нажмите, чтобы выбрать видеофайл с устройства<br>
+            <span style="font-size: 11px; color: var(--text-dim);">(или вставьте ссылку ниже)</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Ссылка на видео (если нет файла)</label>
+          <input type="text" class="form-input" id="upload-url-input" placeholder="https://.../video.mp4" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Описание и хэштеги</label>
+          <textarea class="form-textarea" id="upload-caption" placeholder="Расскажите о чем ваше видео #тиктоп #тренд"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Название музыки</label>
+          <input type="text" class="form-input" id="upload-music" placeholder="Оригинальный звук - Имя автора" />
+        </div>
+
+        <button class="btn-primary" id="btn-submit-upload">Опубликовать</button>
+      </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: РЕДАКТИРОВАНИЕ ПРОФИЛЯ -->
+    <div class="modal-overlay" id="edit-profile-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title">Редактировать профиль ✏️</div>
+          <div class="modal-close">✕</div>
+        </div>
+
+        <!-- Секция выбора/загрузки фото профиля -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 6px;">
+          <input type="file" id="edit-avatar-file-input" accept="image/png,image/jpeg,image/webp,image/gif,image/*" style="display: none;" />
+          <div class="modal-avatar-preview-wrapper" id="modal-avatar-upload-box" title="Нажмите для выбора фото с устройства">
+            <img class="modal-avatar-preview" id="edit-modal-avatar-preview" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150" alt="Avatar">
+            <div class="modal-avatar-upload-overlay">📷 Сменить фото</div>
+          </div>
+          <button type="button" class="btn-secondary" id="btn-choose-avatar-file" style="padding: 6px 14px; font-size: 12.5px;">
+            📁 Выбрать фото с устройства
+          </button>
+        </div>
+
+        <!-- Пресеты популярных аватарок -->
+        <div class="form-group">
+          <label class="form-label">Или выберите готовую аватарку:</label>
+          <div class="avatar-presets-grid" id="avatar-presets-container">
+            <img class="avatar-preset-item" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop" alt="1">
+            <img class="avatar-preset-item" src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&h=150&fit=crop" alt="2">
+            <img class="avatar-preset-item" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop" alt="3">
+            <img class="avatar-preset-item" src="https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=150&h=150&fit=crop" alt="4">
+            <img class="avatar-preset-item" src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=150&h=150&fit=crop" alt="5">
+            <img class="avatar-preset-item" src="https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=150&h=150&fit=crop" alt="6">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Ссылка на аватарку (URL)</label>
+          <input type="text" class="form-input" id="edit-avatar-url" placeholder="https://..." />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Отображаемое имя</label>
+          <input type="text" class="form-input" id="edit-displayname" placeholder="Ваше имя" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">О себе (Био)</label>
+          <textarea class="form-textarea" id="edit-bio" placeholder="Напишите пару слов о себе..."></textarea>
+        </div>
+
+        <button class="btn-primary" id="btn-save-profile">Сохранить профиль</button>
+      </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: ПАНЕЛЬ АДМИНИСТРАТОРА (PUFFAHAKA) -->
+    <div class="modal-overlay" id="admin-modal">
+      <div class="modal-content" style="max-width: 440px;">
+        <div class="modal-header">
+          <div class="modal-title">👑 Панель Администратора</div>
+          <div class="modal-close" id="btn-close-admin">✕</div>
+        </div>
+
+        <!-- Статистика -->
+        <div class="admin-stats-grid" id="admin-stats-container">
+          <!-- Загружается из admin.js -->
+        </div>
+
+        <!-- Вкладки админки -->
+        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+          <button class="feed-tab active admin-tab" data-target="videos" style="flex:1;">Модерация видео</button>
+          <button class="feed-tab admin-tab" data-target="users" style="flex:1;">Пользователи</button>
+        </div>
+
+        <!-- Вью: Модерация видео -->
+        <div class="admin-subview" id="admin-view-videos">
+          <div class="admin-table-container">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Автор</th>
+                  <th>Описание</th>
+                  <th>Лайки</th>
+                  <th>Действие</th>
+                </tr>
+              </thead>
+              <tbody id="admin-videos-list">
+                <!-- Список видео для удаления -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Вью: Пользователи -->
+        <div class="admin-subview" id="admin-view-users" style="display: none;">
+          <div class="admin-table-container">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Ник</th>
+                  <th>Имя</th>
+                  <th>Роль</th>
+                  <th>Действие</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-list">
+                <!-- Список пользователей с кнопками бан/разбан -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- JavaScript Скрипты Модулей -->
+  <script src="js/supabase_client.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/comments.js"></script>
+  <script src="js/friends.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/feed.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
